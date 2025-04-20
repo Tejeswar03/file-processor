@@ -1,100 +1,109 @@
-function readAndEncodeFile(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
+/**
+ * File Upload and Base64 Implementation
+ * 
+ * This module provides functionality to:
+ * 1. Read a file from a local path
+ * 2. Convert the file to base64
+ * 3. Send the base64 encoded file to a Python server
+ */
 
-        reader.onload = () => {
-            const base64Data = reader.result.split(',')[1];
-            resolve(base64Data);
-        };
+// Using Node.js built-in modules for file system operations
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios'); // For making HTTP requests
 
-        reader.onerror = () => {
-            reject(new Error('Error reading file for Base64 encoding'));
-        };
-
-        reader.readAsDataURL(file);
+/**
+ * Reads a file from the provided path and converts it to base64
+ * @param {string} filePath - Path to the file to be encoded
+ * @returns {Promise<string>} - Promise resolving to base64 encoded file
+ */
+function readAndEncodeFile(filePath) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        reject(`Error reading file: ${err.message}`);
+        return;
+      }
+      
+      // Convert buffer to base64 string
+      const base64Data = data.toString('base64');
+      resolve(base64Data);
     });
+  });
 }
 
-async function sendToServer(serverUrl, base64Data, originalFilename, fileType) {
-    try {
-        const payload = {
-            filename: originalFilename,
-            fileData: base64Data,
-            fileType: fileType,
-            timestamp: new Date().toISOString()
-        };
+/**
+ * Sends the base64 encoded file to the specified server endpoint
+ * @param {string} serverUrl - URL of the Python server endpoint
+ * @param {string} base64Data - Base64 encoded file data
+ * @param {string} originalFilename - Original name of the file
+ * @returns {Promise<object>} - Promise resolving to server response
+ */
+async function sendToServer(serverUrl, base64Data, originalFilename) {
+  try {
+    const payload = {
+      filename: originalFilename,
+      fileData: base64Data,
+      // You can add additional metadata here if needed
+      timestamp: new Date().toISOString()
+    };
+    
+    const response = await axios.post(serverUrl, payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    throw new Error(`Error sending to server: ${error.message}`);
+  }
+}
 
-        const response = await fetch(serverUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            throw new Error(`Server responded with status: ${response.status}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        throw new Error(`Error sending to server: ${error.message}`);
+/**
+ * Main function to process a file and send it to the server
+ * @param {string} filePath - Path to the file
+ * @param {string} serverUrl - URL of the Python server endpoint
+ */
+async function processAndUploadFile(filePath, serverUrl) {
+  try {
+    console.log(`Processing file: ${filePath}`);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
     }
+    
+    // Get original filename
+    const originalFilename = path.basename(filePath);
+    
+    // Read and encode the file
+    const base64Data = await readAndEncodeFile(filePath);
+    console.log(`File encoded successfully, size: ${base64Data.length} characters`);
+    
+    // Send to server
+    const response = await sendToServer(serverUrl, base64Data, originalFilename);
+    console.log('Server response:', response);
+    
+    return {
+      success: true,
+      message: 'File processed and uploaded successfully',
+      response
+    };
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    return {
+      success: false,
+      message: error.message
+    };
+  }
 }
 
-async function processAndUploadFile(file, serverUrl, progressCallback = null) {
-    try {
-        console.log(`Processing file: ${file.name}`);
+// Example usage
+// processAndUploadFile('./path/to/file.pdf', 'http://your-python-server.com/upload');
 
-        if (progressCallback) progressCallback(20);
-
-        const base64Data = await readAndEncodeFile(file);
-        console.log(`File encoded successfully, size: ${base64Data.length} characters`);
-
-        if (progressCallback) progressCallback(70);
-
-        const response = await sendToServer(serverUrl, base64Data, file.name, file.type);
-        console.log('Server response:', response);
-
-        if (progressCallback) progressCallback(100);
-
-        return {
-            success: true,
-            message: 'File processed and uploaded successfully',
-            response
-        };
-    } catch (error) {
-        console.error(`Error: ${error.message}`);
-        return {
-            success: false,
-            message: error.message
-        };
-    }
-}
-
-async function encodeFile(file, progressCallback = null) {
-    try {
-        if (progressCallback) progressCallback(20);
-
-        const base64Data = await readAndEncodeFile(file);
-
-        if (progressCallback) progressCallback(100);
-
-        if (base64Data.length > 10000) {
-            const previewLength = 1000;
-            return `Base64 encoded content (showing first ${previewLength} characters):\n\n${base64Data.substring(0, previewLength)}...\n\n[Total encoded length: ${base64Data.length.toLocaleString()} characters]`;
-        } else {
-            return base64Data;
-        }
-    } catch (error) {
-        console.error(`Error encoding file: ${error.message}`);
-        throw error;
-    }
-}
-
-export {
-    readAndEncodeFile,
-    sendToServer,
-    processAndUploadFile,
-    encodeFile
+module.exports = {
+  readAndEncodeFile,
+  sendToServer,
+  processAndUploadFile
 };
