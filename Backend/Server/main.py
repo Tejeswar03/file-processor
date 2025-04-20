@@ -1,18 +1,16 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS  
 import base64
 import os
 import json
 import logging
 import shutil
+import zipfile
 import tempfile
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from datetime import datetime
 
 app = Flask(__name__)
-# Enable CORS for all routes
-CORS(app)
 
 # Configure logging
 logging.basicConfig(
@@ -35,20 +33,14 @@ for directory in [STORAGE_DIR, CHUNKS_DIR]:
 # For demo purposes, we're hardcoding it
 ENCRYPTION_KEY = b'VGhpc0lzQVNlY3JldEtleUZvckRlbW9Pbmx5ISEh=='  # Base64 encoded key
 
-@app.route('/upload_encoded', methods=['POST', 'OPTIONS'])
+@app.route('/upload_encoded', methods=['POST'])
 def upload_file():
     """
     Endpoint for receiving and storing base64 encoded files
     """
-    # Handle OPTIONS request for CORS preflight
-    if request.method == 'OPTIONS':
-        return handle_preflight()
-        
     try:
         # Get data from request
         data = request.json
-        
-        logger.info(f"Received upload request with data keys: {data.keys() if data else 'None'}")
         
         if not data or 'fileData' not in data or 'filename' not in data:
             return jsonify({
@@ -59,8 +51,6 @@ def upload_file():
         # Extract file information
         filename = data['filename']
         file_data = data['fileData']
-        
-        logger.info(f"Processing file: {filename}, data length: {len(file_data) if file_data else 0}")
         
         # Generate a unique filename to avoid collisions
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -99,20 +89,14 @@ def upload_file():
             'message': f'Server error: {str(e)}'
         }), 500
 
-@app.route('/upload_chunked', methods=['POST', 'OPTIONS'])
+@app.route('/upload_chunked', methods=['POST'])
 def chunk_upload_file():
     """
     Endpoint for receiving and storing base64 encoded files in chunks
     """
-    # Handle OPTIONS request for CORS preflight
-    if request.method == 'OPTIONS':
-        return handle_preflight()
-        
     try:
         # Get data from request
         data = request.json
-        
-        logger.info(f"Received chunk upload request with data keys: {data.keys() if data else 'None'}")
         
         if not data or 'chunkData' not in data or 'filename' not in data or 'chunkIndex' not in data or 'totalChunks' not in data:
             return jsonify({
@@ -126,8 +110,6 @@ def chunk_upload_file():
         chunk_index = int(data['chunkIndex'])
         total_chunks = int(data['totalChunks'])
         file_id = data.get('fileId', filename)  # Use provided fileId or fallback to filename
-        
-        logger.info(f"Processing chunk {chunk_index + 1}/{total_chunks} for file: {filename}, data length: {len(chunk_data) if chunk_data else 0}")
         
         # Create a directory for this file's chunks if it doesn't exist
         file_chunks_dir = os.path.join(CHUNKS_DIR, file_id)
@@ -222,20 +204,14 @@ def chunk_upload_file():
             'message': f'Server error: {str(e)}'
         }), 500
 
-@app.route('/upload_encrypted', methods=['POST', 'OPTIONS'])
-def encrypted_upload_file():
+@app.route('/upload_encrypted', methods=['POST'])
+def zip_encrypted_upload_file():
     """
-    Endpoint for receiving and storing encrypted files
+    Endpoint for receiving and storing encrypted zip files
     """
-    # Handle OPTIONS request for CORS preflight
-    if request.method == 'OPTIONS':
-        return handle_preflight()
-        
     try:
         # Get data from request
         data = request.json
-        
-        logger.info(f"Received encrypted upload request with data keys: {data.keys() if data else 'None'}")
         
         if not data or 'encryptedData' not in data or 'filename' not in data:
             return jsonify({
@@ -246,8 +222,6 @@ def encrypted_upload_file():
         # Extract file information
         filename = data['filename']
         encrypted_data = data['encryptedData']
-        
-        logger.info(f"Processing encrypted file: {filename}, data length: {len(encrypted_data) if encrypted_data else 0}")
         
         # Generate a unique filename to avoid collisions
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -289,64 +263,62 @@ def encrypted_upload_file():
             
             decrypted_data = decryptor.update(actual_encrypted_data) + decryptor.finalize()
             
-            # Remove PKCS#7 padding
-            padding_value = decrypted_data[-1]
-            if padding_value > 0 and padding_value <= 16:  # Valid padding range for AES block size
-                if all(b == padding_value for b in decrypted_data[-padding_value:]):
-                    decrypted_data = decrypted_data[:-padding_value]
-            
-            # Save the decrypted file
-            decrypted_path = os.path.join(STORAGE_DIR, f"decrypted_{unique_filename}")
-            with open(decrypted_path, 'wb') as f:
-                f.write(decrypted_data)
-            
-            # Remove the temporary encrypted file
-            os.remove(encrypted_path)
-            
-            logger.info(f"Processed encrypted file: {unique_filename}, decrypted size: {len(decrypted_data)} bytes")
-            
-            # Get file info
-            file_info = {
-                'name': unique_filename,
-                'original_name': filename.split('_')[0] if '_' in filename else filename,
-                'size': len(decrypted_data),
-                'path': decrypted_path
-            }
-            
-            return jsonify({
-                'success': True,
-                'message': 'Encrypted file received and decrypted successfully',
-                'filename': unique_filename,
-                'fileInfo': file_info
-            })
+            # Create temporary directory for extraction
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Save decrypted zip
+                decrypted_zip_path = os.path.join(temp_dir, f"decrypted_{unique_filename}.zip")
+                with open(decrypted_zip_path, 'wb') as f:
+                    f.write(decrypted_data)
+                
+                # Extract zip
+                extract_dir = os.path.join(STORAGE_DIR, f"extracted_{timestamp}_{filename.split('.')[0]}")
+                with zipfile.ZipFile(decrypted_zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+                
+                # Get list of extracted files
+                extracted_files = []
+                for root, _, files in os.walk(extract_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(file_path, extract_dir)
+                        file_size = os.path.getsize(file_path)
+                        extracted_files.append({
+                            'name': relative_path,
+                            'size': file_size
+                        })
+                
+                # Remove the temporary encrypted file
+                os.remove(encrypted_path)
+                
+                logger.info(f"Processed encrypted zip: {unique_filename}, extracted {len(extracted_files)} files")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Encrypted zip received, decrypted, and extracted successfully',
+                    'zipFilename': unique_filename,
+                    'extractionDir': extract_dir,
+                    'extractedFiles': extracted_files
+                })
                 
         except Exception as e:
-            logger.error(f"Error decrypting file: {e}")
+            logger.error(f"Error decrypting or extracting zip: {e}")
             # Clean up
             if os.path.exists(encrypted_path):
                 os.remove(encrypted_path)
                 
             return jsonify({
                 'success': False,
-                'message': f'Error processing encrypted file: {str(e)}'
+                'message': f'Error processing encrypted zip: {str(e)}'
             }), 500
             
     except Exception as e:
-        logger.error(f"Error processing encrypted upload: {e}")
+        logger.error(f"Error processing encrypted zip upload: {e}")
         return jsonify({
             'success': False,
             'message': f'Server error: {str(e)}'
         }), 500
 
-def handle_preflight():
-    """Handle CORS preflight requests"""
-    response = jsonify({'status': 'success'})
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    return response
-
 if __name__ == '__main__':
     # For production, consider using a proper WSGI server like Gunicorn
     logger.info(f"Starting server on port 5000, files will be stored in {STORAGE_DIR}")
-    app.run(host='0.0.0.0', port=5000, debug=True)  # Set debug=True for development
+    app.run(host='0.0.0.0', port=5000, debug=False)
