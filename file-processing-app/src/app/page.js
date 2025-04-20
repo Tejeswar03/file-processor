@@ -10,14 +10,14 @@ import ResultSection from '@/components/ResultSection';
 const loadModules = () => {
   // Import modules with try-catch blocks
   try {
-    import('@/utils/FileMonitor/index').then(module => {
-      window.webrtcUploadHandler = module;
-      console.log('File Monitor module loaded successfully');
+    import('@/utils/FileRegular/index').then(module => {
+      window.uploadFile = module;
+      console.log('File regular module loaded successfully');
     }).catch(error => {
-      console.error('Error loading fileMonitor module:', error);
+      console.error('Error loading filReg module:', error);
     });
   } catch (error) {
-    console.error('Error importing fileMonitor module:', error);
+    console.error('Error importing fileReg module:', error);
   }
   
   try {

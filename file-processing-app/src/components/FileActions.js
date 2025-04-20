@@ -12,76 +12,49 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-    webrtcSignal: 'ws://localhost:5001',
-    fallbackHttp: 'http://localhost:5001/upload_webrtc',
-    regular: 'http://localhost:5001/upload_encoded',
+    regular: 'http://localhost:5001/upload_regular',
+    encoded: 'http://localhost:5001/upload_encoded',
     encrypted: 'http://localhost:5001/upload_encrypted',
     chunked: 'http://localhost:5001/upload_chunked'
   };
 
-  // not sure whats this for 
-  const handleMonitor = async () => {
-    if (!currentFile || !window.fileMonitor) return;
-
-    progressControls.show();
-    setIsResultVisible(false);
-
-    try {
-      const result = await window.fileMonitor.monitorFile(currentFile, progressControls.update);
-      setResultData({
-        title: 'File Monitoring Results',
-        content: result,
-        icon: 'chart-bar'
-      });
-      setIsResultVisible(true);
-    } catch (error) {
-      setResultData({
-        title: 'Error',
-        content: error.message || String(error),
-        icon: 'exclamation-circle'
-      });
-      setIsResultVisible(true);
-    } finally {
-      progressControls.hide();
-    }
-  };
-
-  const handleWebrtc = async () => {
-    console.log('WebRTC upload initiated');
-    if (!currentFile || !window.webrtcUploadHandler) return;
+  
+  const handleRegular = async () => {
+    if (!currentFile || !window.uploadFile) return;
+    const serverUrl = serverUrls.regular;
     progressControls.show();
     setIsResultVisible(false);
     try {
-      await window.webrtcUploadHandler.processAndUploadFile(
+      const result = await window.uploadFile.processAndUploadFile(
         currentFile,
-        serverUrls.webrtcSignal,
-        undefined,
+        serverUrl,
         progressControls.update
       );
-      // Optionally confirm HTTP fallback
       setResultData({
-        title: 'WebRTC Upload',
-        content: 'File transferred via WebRTC and HTTP fallback completed.',
+        title: 'Regular Upload',
+        content: result,
         icon: 'cloud-upload-alt'
       });
+      setIsResultVisible(true);
     } catch (error) {
       setResultData({
         title: 'Error',
         content: error.message || String(error),
         icon: 'exclamation-circle'
       });
-    } finally {
       setIsResultVisible(true);
+    } finally {
       progressControls.hide();
     }
   };
+
 
 
 
   const handleBase64 = async () => {
     if (!currentFile || !window.base64Handler) return;
 
-    const serverUrl = serverUrls.regular;
+    const serverUrl = serverUrls.encoded;
     progressControls.show();
     setIsResultVisible(false);
 
@@ -183,14 +156,14 @@ export default function FileActions({
           <div
             className={`action-card monitor ${!currentFile ? 'disabled' : ''}`}
 
-            onClick={currentFile ? handleWebrtc : null}
+            onClick={currentFile ? handleRegular : null}
             
           >
             <div className="action-icon">
               <i className="fas fa-chart-bar"></i>
             </div>
-            <div className="action-title">WebRTC Upload</div>
-            <div className="action-desc">Transfer file via WebRTC + HTTP fallback</div>
+            <div className="action-title">Normal Upload</div>
+            <div className="action-desc">Transfer file via Normal method</div>
           </div>
 
           <div
@@ -212,7 +185,7 @@ export default function FileActions({
               <i className="fas fa-lock"></i>
             </div>
             <div className="action-title">Encryption</div>
-            <div className="action-desc">Encrypt file with AES-GCM</div>
+            <div className="action-desc">Encrypt file with AES-CBC</div>
           </div>
 
           <div

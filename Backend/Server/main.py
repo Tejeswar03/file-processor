@@ -4,17 +4,11 @@ import os
 import json
 import logging
 import shutil
-import hashlib
 import zipfile
-from werkzeug.utils import secure_filename
 import tempfile
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from datetime import datetime
-import eventlet
-eventlet.monkey_patch()  # Important for Socket.IO to work with Flask
-from flask_socketio import SocketIO, emit
-
 
 app = Flask(__name__)
 from flask_cors import CORS
@@ -26,9 +20,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# Initialize Socket.IO
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # Configure storage directory - change this to your preferred location
 STORAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -43,99 +34,6 @@ for directory in [STORAGE_DIR, CHUNKS_DIR]:
 # Encryption key - in production, store this securely!
 # For demo purposes, we're hardcoding it
 ENCRYPTION_KEY = b'VGhpc0lzQVNlY3JldEtleUZvckRlbW9Pbmx5ISEh=='  # Base64 encoded key
-
-# WebRTC connection rooms
-webrtc_rooms = {}
-
-# Socket.IO event handlers for WebRTC signaling
-@socketio.on('connect')
-def handle_connect():
-    logger.info(f"Client connected: {request.sid}")
-    emit('connection_established', {'message': 'Connected to WebRTC signaling server'})
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    logger.info(f"Client disconnected: {request.sid}")
-    # Clean up any rooms this client was in
-    for room_id, clients in list(webrtc_rooms.items()):
-        if request.sid in clients:
-            clients.remove(request.sid)
-            if len(clients) == 0:
-                del webrtc_rooms[room_id]
-
-@socketio.on('join_room')
-def handle_join_room(data):
-    room_id = data.get('room')
-    if not room_id:
-        emit('error', {'message': 'Room ID is required'})
-        return
-    
-    if room_id not in webrtc_rooms:
-        webrtc_rooms[room_id] = []
-    
-    webrtc_rooms[room_id].append(request.sid)
-    logger.info(f"Client {request.sid} joined room {room_id}")
-    emit('room_joined', {'room': room_id})
-
-@socketio.on('webrtc_offer')
-def handle_offer(data):
-    room_id = data.get('room')
-    offer = data.get('offer')
-    
-    if not room_id or not offer or room_id not in webrtc_rooms:
-        emit('error', {'message': 'Invalid offer data'})
-        return
-    
-    # Forward offer to all other clients in the room
-    for client_id in webrtc_rooms[room_id]:
-        if client_id != request.sid:
-            socketio.emit('webrtc_offer', {
-                'offer': offer,
-                'from': request.sid
-            }, room=client_id)
-
-@socketio.on('webrtc_answer')
-def handle_answer(data):
-    room_id = data.get('room')
-    answer = data.get('answer')
-    target = data.get('target')
-    
-    if not room_id or not answer or not target or room_id not in webrtc_rooms:
-        emit('error', {'message': 'Invalid answer data'})
-        return
-    
-    # Send answer to specific client
-    socketio.emit('webrtc_answer', {
-        'answer': answer,
-        'from': request.sid
-    }, room=target)
-
-@socketio.on('webrtc_ice_candidate')
-def handle_ice_candidate(data):
-    room_id = data.get('room')
-    candidate = data.get('candidate')
-    target = data.get('target')
-    
-    if not room_id or not candidate or room_id not in webrtc_rooms:
-        emit('error', {'message': 'Invalid ICE candidate data'})
-        return
-    
-    # If target is specified, send only to that client
-    if target:
-        socketio.emit('webrtc_ice_candidate', {
-            'candidate': candidate,
-            'from': request.sid
-        }, room=target)
-    else:
-        # Otherwise, broadcast to all other clients in the room
-        for client_id in webrtc_rooms[room_id]:
-            if client_id != request.sid:
-                socketio.emit('webrtc_ice_candidate', {
-                    'candidate': candidate,
-                    'from': request.sid
-                }, room=client_id)
-
-# REST endpoints for file uploads (existing code below)
 
 @app.route('/upload_encoded', methods=['POST'])
 def upload_file():
@@ -356,7 +254,9 @@ def zip_encrypted_upload_file():
             iv = encrypted_data[:16]
             actual_encrypted_data = encrypted_data[16:]
             
-   
+            # Decrypt using AES-256-CBC (same as client-side)
+            # Create a 32-byte key using SHA-256 of the base64 decoded key
+            import hashlib
             key_material = base64.b64decode(ENCRYPTION_KEY)
             key = hashlib.sha256(key_material).digest()
             
@@ -421,44 +321,56 @@ def zip_encrypted_upload_file():
         }), 500
 
 
-
-@app.route('/upload_webrtc', methods=['POST'])
-def upload_webrtc():
+@app.route('/upload_regular', methods=['POST'])
+def upload_regular_file():
     """
-    Simple HTTP upload endpoint for WebRTC demo clients.
-    Expects a multipart/form-data POST with key="file".
+    Endpoint for receiving and storing regular files (not base64 encoded or encrypted)
     """
-    # 1) Check if file part is present
-    if 'file' not in request.files:
-        return jsonify(success=False, message="No file part in request"), 400
-
-    file = request.files['file']
-
-    # 2) Check a file was actually selected
-    if file.filename == '':
-        return jsonify(success=False, message="No selected file"), 400
-
-    # 3) Secure the filename and save
-    filename = secure_filename(file.filename)
-    save_path = os.path.join(STORAGE_DIR, filename)
     try:
-        file.save(save_path)
+        # Check if the request contains a file
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'message': 'No file part in the request'
+            }), 400
+        
+        file = request.files['file']
+        
+        # Check if a file was actually uploaded
+        if file.filename == '':
+            return jsonify({
+                'success': False,
+                'message': 'No file selected for uploading'
+            }), 400
+        
+        # Generate a unique filename to avoid collisions
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        unique_filename = f"{timestamp}_{file.filename}"
+        file_path = os.path.join(STORAGE_DIR, unique_filename)
+        
+        # Save the file to the storage directory
+        file.save(file_path)
+        
+        file_size = os.path.getsize(file_path)
+        logger.info(f"Saved regular file: {unique_filename} ({file_size} bytes)")
+        
+        return jsonify({
+            'success': True,
+            'message': 'File received and saved successfully',
+            'filename': unique_filename,
+            'size': file_size,
+            'path': file_path
+        })
+        
     except Exception as e:
-        logger.error(f"Error saving uploaded file: {e}")
-        return jsonify(success=False, message=f"Failed to save file: {e}"), 500
+        logger.error(f"Error processing regular file upload: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
 
-    # 4) Return metadata
-    file_size = os.path.getsize(save_path)
-    logger.info(f"Received file via WebRTC demo: {filename} ({file_size} bytes)")
-    return jsonify(
-        success=True,
-        filename=filename,
-        size=file_size,
-        path=save_path
-    ), 200
 
 if __name__ == '__main__':
     # For production, consider using a proper WSGI server like Gunicorn
     logger.info(f"Starting server on port 5001, files will be stored in {STORAGE_DIR}")
-    # Don't use app.run() with Socket.IO, use socketio.run() instead
-    socketio.run(app, host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=False)
