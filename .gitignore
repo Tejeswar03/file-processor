@@ -1,0 +1,6 @@
+Backend/Server/venv/
+Backend/Server/__pycache__/
+Backend/Server/chunks/
+Backend/Server/uploads 
+test.txt
+Client/node_modules/
