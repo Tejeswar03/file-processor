@@ -4,3 +4,4 @@ Backend/Server/chunks/
 Backend/Server/uploads 
 test.txt
 Client/node_modules/
+.vscode/
