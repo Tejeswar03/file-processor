@@ -1,49 +1,30 @@
-/**
- * File Chunking Module
- * Splits files into chunks for efficient upload
- */
-
 export async function uploadFileInChunks(file, serverUrl, chunkSize = 1048576, progressCallback) {
   if (!file) {
     throw new Error('No file provided');
   }
 
-  // Default chunk size: 1MB
   chunkSize = chunkSize || 1048576;
 
-  // Start progress
   if (progressCallback) progressCallback(10);
   
   try {
-    // Calculate optimal chunk sizes
     const chunks = calculateChunks(file, chunkSize);
     
-    // Update progress
     if (progressCallback) progressCallback(20);
     
-    // Generate a unique file ID for tracking chunks on server
     const fileId = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
     
-    // Analyze the first chunk for visualization (same as before)
     const chunkData = await analyzeChunks(file, chunks, progressCallback);
     
-    // Update progress before starting upload
     if (progressCallback) progressCallback(30);
     
-    // Start uploading chunks
     let uploadResults = [];
     let finalResponse = null;
     
     for (let i = 0; i < chunks.totalChunks; i++) {
       const chunk = chunks.chunks[i];
-      
-      // Read the chunk data
       const chunkArrayBuffer = await readChunk(file, chunk.start, chunk.end);
-      
-      // Convert chunk to Base64 for JSON upload
       const base64Chunk = arrayBufferToBase64(chunkArrayBuffer);
-      
-      // Upload the chunk
       const response = await uploadChunk(
         base64Chunk, 
         file.name, 
@@ -55,12 +36,10 @@ export async function uploadFileInChunks(file, serverUrl, chunkSize = 1048576, p
       
       uploadResults.push(response);
       
-      // Check if upload is complete
       if (response.completed) {
         finalResponse = response;
       }
       
-      // Update progress (30-90% range)
       const progressPercent = 30 + Math.round((i + 1) / chunks.totalChunks * 60);
       if (progressCallback) {
         progressCallback({
@@ -71,10 +50,8 @@ export async function uploadFileInChunks(file, serverUrl, chunkSize = 1048576, p
       }
     }
     
-    // Complete progress
     if (progressCallback) progressCallback(100);
     
-    // Return both analysis info and upload results
     return formatUploadResult(file, chunks, chunkData, uploadResults, finalResponse);
   } catch (error) {
     console.error('Chunking error:', error);
@@ -82,19 +59,16 @@ export async function uploadFileInChunks(file, serverUrl, chunkSize = 1048576, p
   }
 }
 
-// Read a chunk from the file
 async function readChunk(file, start, end) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error('Error reading file chunk'));
-    
     const slice = file.slice(start, end);
     reader.readAsArrayBuffer(slice);
   });
 }
 
-// Upload a single chunk to the server
 function uploadChunk(chunkData, filename, chunkIndex, totalChunks, fileId, serverUrl) {
   return new Promise((resolve, reject) => {
     fetch(serverUrl, {
@@ -125,7 +99,6 @@ function uploadChunk(chunkData, filename, chunkIndex, totalChunks, fileId, serve
   });
 }
 
-// Helper function to convert ArrayBuffer to Base64
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -135,18 +108,14 @@ function arrayBufferToBase64(buffer) {
   return window.btoa(binary);
 }
 
-// Calculate chunks based on file size
 function calculateChunks(file, chunkSize) {
   const fileSize = file.size;
   const totalChunks = Math.ceil(fileSize / chunkSize);
-  
-  // Create chunk info array
   const chunks = [];
   
   for (let i = 0; i < totalChunks; i++) {
     const start = i * chunkSize;
     const end = Math.min(fileSize, start + chunkSize);
-    
     chunks.push({
       index: i,
       start,
@@ -163,59 +132,39 @@ function calculateChunks(file, chunkSize) {
   };
 }
 
-// Analyze a few chunks for content visualization
 async function analyzeChunks(file, chunkInfo, progressCallback) {
-  // For demonstration, we'll analyze just the first chunk
-  // In a real application, you'd process all chunks
-  
   const firstChunk = chunkInfo.chunks[0];
   const slice = file.slice(firstChunk.start, firstChunk.end);
-  
-  // Create a readable version of the first few bytes
   const buffer = await slice.arrayBuffer();
   const bytes = new Uint8Array(buffer);
-  
-  // Generate a hex dump of the first 128 bytes
   const hexDump = generateHexDump(bytes.slice(0, 128));
-  
-  // Mock transfer rates based on file type and size
   const transferRates = estimateTransferRates(file, chunkInfo.chunkSize);
-  
   return {
     firstChunkPreview: hexDump,
     transferRates
   };
 }
 
-// Generate a hex dump of bytes
 function generateHexDump(bytes) {
   const BYTES_PER_LINE = 16;
   let output = '';
   
   for (let i = 0; i < bytes.length; i += BYTES_PER_LINE) {
-    // Add offset
     output += `0x${i.toString(16).padStart(8, '0')}: `;
-    
-    // Add hex values
     for (let j = 0; j < BYTES_PER_LINE; j++) {
       if (i + j < bytes.length) {
         output += bytes[i + j].toString(16).padStart(2, '0') + ' ';
       } else {
         output += '   ';
       }
-      
-      // Add extra space in the middle
       if (j === 7) {
         output += ' ';
       }
     }
-    
-    // Add ASCII representation
     output += ' |';
     for (let j = 0; j < BYTES_PER_LINE; j++) {
       if (i + j < bytes.length) {
         const byte = bytes[i + j];
-        // Only print printable ASCII characters
         output += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
       } else {
         output += ' ';
@@ -227,27 +176,20 @@ function generateHexDump(bytes) {
   return output;
 }
 
-// Estimate transfer rates for different network types
 function estimateTransferRates(file, chunkSize) {
-  // These are rough estimates for demonstration
   const networkSpeeds = {
-    '3G': 1.5 * 1024 * 1024 / 8, // 1.5 Mbps in bytes/sec
-    '4G': 15 * 1024 * 1024 / 8,  // 15 Mbps in bytes/sec
-    'WiFi': 30 * 1024 * 1024 / 8, // 30 Mbps in bytes/sec
-    'Fiber': 100 * 1024 * 1024 / 8 // 100 Mbps in bytes/sec
+    '3G': 1.5 * 1024 * 1024 / 8,
+    '4G': 15 * 1024 * 1024 / 8,
+    'WiFi': 30 * 1024 * 1024 / 8,
+    'Fiber': 100 * 1024 * 1024 / 8
   };
   
   const fileSize = file.size;
   const results = {};
   
-  // Calculate transfer times for each network type
   for (const [networkType, speed] of Object.entries(networkSpeeds)) {
-    // Calculate total transfer time
     const totalTime = fileSize / speed;
-    
-    // Calculate time per chunk
     const timePerChunk = chunkSize / speed;
-    
     results[networkType] = {
       totalTime: formatTime(totalTime),
       timePerChunk: formatTime(timePerChunk),
@@ -259,9 +201,7 @@ function estimateTransferRates(file, chunkSize) {
   return results;
 }
 
-// Format the upload result with both analysis info and upload results
 function formatUploadResult(file, chunkInfo, chunkData, uploadResults, finalResponse) {
-  // First part - analysis info (same as before)
   let output = `File Chunking Upload Results
 ==========================
 
@@ -275,14 +215,12 @@ Chunk Size: ${formatFileSize(chunkInfo.chunkSize)}
 Total Chunks: ${chunkInfo.totalChunks}
 `;
 
-  // Add upload status section
   output += `
 Upload Status:
 ------------
 Chunks Uploaded: ${uploadResults.length}/${chunkInfo.totalChunks}
 `;
 
-  // Add server response if available
   if (finalResponse) {
     output += `
 Server Response:
@@ -304,7 +242,6 @@ Message: ${finalResponse.message}
     }
   }
 
-  // Add chunk breakdown
   output += `
 Chunk Breakdown:
 --------------
@@ -320,13 +257,11 @@ Chunk Breakdown:
     output += `... and ${chunkInfo.chunks.length - maxChunksToShow} more chunks\n`;
   }
   
-  // Add first chunk preview
   output += `\nFirst Chunk Preview (Hex Dump):
 --------------------------
 ${chunkData.firstChunkPreview}
 `;
 
-  // Add transfer rate estimates
   output += `
 Estimated Transfer Rates:
 ----------------------
@@ -340,7 +275,6 @@ Estimated Transfer Rates:
 \n`;
   }
   
-  // Add recommendations
   output += `
 Recommendations:
 --------------
@@ -364,7 +298,6 @@ Recommendations:
   return output;
 }
 
-// Format time in seconds to a human-readable string
 function formatTime(seconds) {
   if (seconds < 1) {
     return `${Math.round(seconds * 1000)} ms`;
@@ -381,7 +314,6 @@ function formatTime(seconds) {
   }
 }
 
-// Helper function to format file size
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';
   

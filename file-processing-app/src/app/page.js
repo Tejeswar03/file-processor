@@ -10,8 +10,8 @@ import ResultSection from '@/components/ResultSection';
 const loadModules = () => {
   // Import modules with try-catch blocks
   try {
-    import('@/utils/fileMonitor').then(module => {
-      window.fileMonitor = module;
+    import('@/utils/FileMonitor/index').then(module => {
+      window.webrtcUploadHandler = module;
       console.log('File Monitor module loaded successfully');
     }).catch(error => {
       console.error('Error loading fileMonitor module:', error);

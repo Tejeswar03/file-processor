@@ -1,28 +1,31 @@
 'use client';
 import { useState } from 'react';
 
-export default function FileActions({ 
-  currentFile, 
+export default function FileActions({
+  currentFile,
   progressControls,
-  setResultData, 
-  setIsResultVisible 
+  setResultData,
+  setIsResultVisible
 }) {
   const [chunkSize, setChunkSize] = useState(1048576); // Default: 1MB
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
+    webrtcSignal: 'ws://localhost:5001',
+    fallbackHttp: 'http://localhost:5001/upload_webrtc',
     regular: 'http://localhost:5001/upload_encoded',
     encrypted: 'http://localhost:5001/upload_encrypted',
     chunked: 'http://localhost:5001/upload_chunked'
   };
 
+  // not sure whats this for 
   const handleMonitor = async () => {
     if (!currentFile || !window.fileMonitor) return;
-    
+
     progressControls.show();
     setIsResultVisible(false);
-    
+
     try {
       const result = await window.fileMonitor.monitorFile(currentFile, progressControls.update);
       setResultData({
@@ -43,17 +46,49 @@ export default function FileActions({
     }
   };
 
+  const handleWebrtc = async () => {
+    console.log('WebRTC upload initiated');
+    if (!currentFile || !window.webrtcUploadHandler) return;
+    progressControls.show();
+    setIsResultVisible(false);
+    try {
+      await window.webrtcUploadHandler.processAndUploadFile(
+        currentFile,
+        serverUrls.webrtcSignal,
+        undefined,
+        progressControls.update
+      );
+      // Optionally confirm HTTP fallback
+      setResultData({
+        title: 'WebRTC Upload',
+        content: 'File transferred via WebRTC and HTTP fallback completed.',
+        icon: 'cloud-upload-alt'
+      });
+    } catch (error) {
+      setResultData({
+        title: 'Error',
+        content: error.message || String(error),
+        icon: 'exclamation-circle'
+      });
+    } finally {
+      setIsResultVisible(true);
+      progressControls.hide();
+    }
+  };
+
+
+
   const handleBase64 = async () => {
     if (!currentFile || !window.base64Handler) return;
-    
+
     const serverUrl = serverUrls.regular;
     progressControls.show();
     setIsResultVisible(false);
-    
+
     try {
       const result = await window.base64Handler.processAndUploadFile(
-        currentFile, 
-        serverUrl, 
+        currentFile,
+        serverUrl,
         progressControls.update
       );
       setResultData({
@@ -76,15 +111,15 @@ export default function FileActions({
 
   const handleEncrypt = async () => {
     if (!currentFile || !window.encryptionHandler) return;
-    
+
     const serverUrl = serverUrls.encrypted;
     progressControls.show();
     setIsResultVisible(false);
-    
+
     try {
       const result = await window.encryptionHandler.processAndUploadEncrypted(
-        currentFile, 
-        serverUrl, 
+        currentFile,
+        serverUrl,
         progressControls.update
       );
       setResultData({
@@ -107,16 +142,16 @@ export default function FileActions({
 
   const handleChunks = async () => {
     if (!currentFile || !window.chunkHandler) return;
-    
+
     const serverUrl = serverUrls.chunked;
     progressControls.show();
     setIsResultVisible(false);
-    
+
     try {
       const result = await window.chunkHandler.uploadFileInChunks(
-        currentFile, 
-        serverUrl, 
-        chunkSize, 
+        currentFile,
+        serverUrl,
+        chunkSize,
         progressControls.update
       );
       setResultData({
@@ -145,18 +180,20 @@ export default function FileActions({
           File Operations
         </div>
         <div className="actions-container">
-          <div 
+          <div
             className={`action-card monitor ${!currentFile ? 'disabled' : ''}`}
-            onClick={currentFile ? handleMonitor : null}
+
+            onClick={currentFile ? handleWebrtc : null}
+            
           >
             <div className="action-icon">
               <i className="fas fa-chart-bar"></i>
             </div>
-            <div className="action-title">File Monitoring</div>
-            <div className="action-desc">Analyze file content & metadata</div>
+            <div className="action-title">WebRTC Upload</div>
+            <div className="action-desc">Transfer file via WebRTC + HTTP fallback</div>
           </div>
-          
-          <div 
+
+          <div
             className={`action-card base64 ${!currentFile ? 'disabled' : ''}`}
             onClick={currentFile ? handleBase64 : null}
           >
@@ -166,8 +203,8 @@ export default function FileActions({
             <div className="action-title">Base64 Encoding</div>
             <div className="action-desc">Convert file to Base64 format</div>
           </div>
-          
-          <div 
+
+          <div
             className={`action-card encrypt ${!currentFile ? 'disabled' : ''}`}
             onClick={currentFile ? handleEncrypt : null}
           >
@@ -177,14 +214,14 @@ export default function FileActions({
             <div className="action-title">Encryption</div>
             <div className="action-desc">Encrypt file with AES-GCM</div>
           </div>
-          
-          <div 
+
+          <div
             className={`action-card chunks ${!currentFile ? 'disabled' : ''}`}
             onClick={currentFile ? handleChunks : null}
             onMouseOver={() => setIsOptionsVisible(true)}
             onMouseOut={() => {
-              if (!document.activeElement || 
-                  !document.getElementById('optionsContainer')?.contains(document.activeElement)) {
+              if (!document.activeElement ||
+                !document.getElementById('optionsContainer')?.contains(document.activeElement)) {
                 setIsOptionsVisible(false);
               }
             }}
@@ -197,10 +234,10 @@ export default function FileActions({
           </div>
         </div>
       </div>
-      
-      <div 
-        id="optionsContainer" 
-        className="file-info" 
+
+      <div
+        id="optionsContainer"
+        className="file-info"
         style={{
           display: isOptionsVisible && currentFile ? 'block' : 'none',
           marginTop: '16px'
@@ -210,10 +247,10 @@ export default function FileActions({
           <label htmlFor="chunkSizeInput" style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
             Chunk Size (bytes):
           </label>
-          <input 
-            type="number" 
-            id="chunkSizeInput" 
-            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ECEFF1' }} 
+          <input
+            type="number"
+            id="chunkSizeInput"
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ECEFF1' }}
             value={chunkSize}
             onChange={(e) => setChunkSize(parseInt(e.target.value) || 1048576)}
           />
