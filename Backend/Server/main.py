@@ -204,7 +204,7 @@ def chunk_upload_file():
             'message': f'Server error: {str(e)}'
         }), 500
 
-@app.route('/upload_zip_encrypted', methods=['POST'])
+@app.route('/upload_encrypted', methods=['POST'])
 def zip_encrypted_upload_file():
     """
     Endpoint for receiving and storing encrypted zip files
