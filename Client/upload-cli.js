@@ -18,7 +18,7 @@
 
 const { processAndUploadFile } = require('./EncodingBase64/index');
 const { uploadFileInChunks } = require('./Chunked/index');
-const { processAndUploadEncrypted } = require('./EncryptedZip/index');
+const { processAndUploadEncrypted } = require('./EncryptedAES/index');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -45,7 +45,7 @@ if (cleanArgs.length < 3) {
   console.log('Examples:');
   console.log('  node upload-cli.js regular ./test.txt http://localhost:5000/upload_encoded');
   console.log('  node upload-cli.js chunked ./large-file.iso http://localhost:5000/upload_chunked --chunk-size=2097152');
-  console.log('  node upload-cli.js encrypted ./sensitive-folder http://localhost:5000/upload_zip_encrypted\n');
+  console.log('  node upload-cli.js encrypted ./sensitive-folder http://localhost:5000/upload_encrypted\n');
   console.log('Options:');
   console.log('  --chunk-size=<bytes>  - Size of chunks in bytes (default: 1MB)');
   process.exit(1);
