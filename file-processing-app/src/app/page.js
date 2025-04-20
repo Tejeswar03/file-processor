@@ -11,7 +11,7 @@ const loadModules = () => {
   // Import modules with try-catch blocks
   try {
     import('@/utils/fileMonitor').then(module => {
-      window.fileMonitor = module;
+      window.uploadFile = module;
       console.log('File Monitor module loaded successfully');
     }).catch(error => {
       console.error('Error loading fileMonitor module:', error);
