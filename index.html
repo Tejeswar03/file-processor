@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Processing App</title>
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #166088;
+            --accent-color: #166088;
+            --light-color: #f5f5f5;
+            --dark-color: #333;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: var(--light-color);
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .file-upload {
+            border: 2px dashed var(--accent-color);
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            background-color: rgba(74, 111, 165, 0.05);
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .file-upload.active {
+            border-color: #28a745;
+            background-color: rgba(40, 167, 69, 0.05);
+        }
+        
+        .file-upload input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+        }
+        
+        .file-info {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .file-info.visible {
+            display: block;
+        }
+        
+        .btn-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 500;
+            min-width: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .btn i {
+            margin-right: 5px;
+        }
+        
+        .result-container {
+            margin-top: 20px;
+            display: none;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        
+        .result-container.visible {
+            display: block;
+        }
+        
+        .result-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .result-content {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .copy-btn {
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .copy-btn:hover {
+            background-color: rgba(74, 111, 165, 0.1);
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .btn-container {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>File Processing Application</h1>
+        
+        <div class="file-upload" id="dropZone">
+            <div class="upload-icon">📁</div>
+            <p>Drag & drop your file here or <strong>click to browse</strong></p>
+            <input type="file" id="fileInput">
+            <div class="file-info" id="fileInfo">
+                <p><strong>File:</strong> <span id="fileName"></span></p>
+                <p><strong>Size:</strong> <span id="fileSize"></span></p>
+                <p><strong>Type:</strong> <span id="fileType"></span></p>
+            </div>
+        </div>
+        
+        <div class="btn-container">
+            <button class="btn" id="monitorBtn" disabled>
+                <span>📊 Monitor</span>
+            </button>
+            <button class="btn" id="base64Btn" disabled>
+                <span>🔄 Base64</span>
+            </button>
+            <button class="btn" id="encryptBtn" disabled>
+                <span>🔒 Encrypt</span>
+            </button>
+            <button class="btn" id="chunksBtn" disabled>
+                <span>✂️ Chunks</span>
+            </button>
+        </div>
+        
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="result-container" id="resultContainer">
+            <div class="result-heading">
+                <h3 id="resultTitle">Result</h3>
+                <button class="copy-btn" id="copyBtn">Copy to clipboard</button>
+            </div>
+            <pre class="result-content" id="resultContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Main application script
+        document.addEventListener('DOMContentLoaded', function() {
+            // Import modules
+            import('./fileMonitor.js').then(module => {
+                window.fileMonitor = module;
+            });
+            
+            import('./base64Handler.js').then(module => {
+                window.base64Handler = module;
+            });
+            
+            import('./encryptionHandler.js').then(module => {
+                window.encryptionHandler = module;
+            });
+            
+            import('./chunkHandler.js').then(module => {
+                window.chunkHandler = module;
+            });
+            
+            // DOM elements
+            const fileInput = document.getElementById('fileInput');
+            const dropZone = document.getElementById('dropZone');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const fileType = document.getElementById('fileType');
+            const monitorBtn = document.getElementById('monitorBtn');
+            const base64Btn = document.getElementById('base64Btn');
+            const encryptBtn = document.getElementById('encryptBtn');
+            const chunksBtn = document.getElementById('chunksBtn');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            const copyBtn = document.getElementById('copyBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            
+            let currentFile = null;
+            
+            // File input change handler
+            fileInput.addEventListener('change', handleFileSelection);
+            
+            // Drag and drop handlers
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('active');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('active');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('active');
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelection();
+                }
+            });
+            
+            // Button event listeners
+            monitorBtn.addEventListener('click', handleMonitor);
+            base64Btn.addEventListener('click', handleBase64);
+            encryptBtn.addEventListener('click', handleEncryption);
+            chunksBtn.addEventListener('click', handleChunks);
+            
+            // Copy button event listener
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(resultContent.textContent)
+                    .then(() => {
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyBtn.textContent = 'Copy to clipboard';
+                        }, 2000);
+                    });
+            });
+            
+            // Handle file selection
+            function handleFileSelection() {
+                if (fileInput.files.length > 0) {
+                    currentFile = fileInput.files[0];
+                    
+                    // Display file info
+                    fileName.textContent = currentFile.name;
+                    fileSize.textContent = formatFileSize(currentFile.size);
+                    fileType.textContent = currentFile.type || 'Unknown';
+                    fileInfo.classList.add('visible');
+                    
+                    // Enable buttons
+                    monitorBtn.disabled = false;
+                    base64Btn.disabled = false;
+                    encryptBtn.disabled = false;
+                    chunksBtn.disabled = false;
+                    
+                    // Hide results if visible
+                    resultContainer.classList.remove('visible');
+                }
+            }
+            
+            // Handle monitor button click
+            function handleMonitor() {
+                if (!currentFile) return;
+                
+                showProgress();
+                
+                // Using the fileMonitor module
+                window.fileMonitor.monitorFile(currentFile, updateProgress)
+                    .then(result => {
+                        displayResult('File Monitoring Results', result);
+                        hideProgress();
+                    })
+                    .catch(error => {
+                        displayResult('Error', error.message);
+                        hideProgress();
+                    });
+            }
+            
+            // Handle base64 button click
+            function handleBase64() {
+                if (!currentFile) return;
+                
+                showProgress();
+                
+                // Using the base64Handler module
+                window.base64Handler.encodeFile(currentFile, updateProgress)
+                    .then(result => {
+                        displayResult('Base64 Encoded', result);
+                        hideProgress();
+                    })
+                    .catch(error => {
+                        displayResult('Error', error.message);
+                        hideProgress();
+                    });
+            }
+            
+            // Handle encryption button click
+            function handleEncryption() {
+                if (!currentFile) return;
+                
+                showProgress();
+                
+                // Using the encryptionHandler module
+                window.encryptionHandler.encryptFile(currentFile, updateProgress)
+                    .then(result => {
+                        displayResult('Encrypted Result', result);
+                        hideProgress();
+                    })
+                    .catch(error => {
+                        displayResult('Error', error.message);
+                        hideProgress();
+                    });
+            }
+            
+            // Handle chunks button click
+            function handleChunks() {
+                if (!currentFile) return;
+                
+                showProgress();
+                
+                // Using the chunkHandler module
+                window.chunkHandler.splitFile(currentFile, updateProgress)
+                    .then(result => {
+                        displayResult('File Chunks Information', result);
+                        hideProgress();
+                    })
+                    .catch(error => {
+                        displayResult('Error', error.message);
+                        hideProgress();
+                    });
+            }
+            
+            // Display result
+            function displayResult(title, content) {
+                resultTitle.textContent = title;
+                resultContent.textContent = content;
+                resultContainer.classList.add('visible');
+            }
+            
+            // Format file size
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                
+                const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(1024));
+                
+                return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // Progress bar functions
+            function showProgress() {
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+            }
+            
+            function hideProgress() {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 500);
+            }
+            
+            function updateProgress(percent) {
+                progressBar.style.width = percent + '%';
+            }
+        });
+    </script>
+</body>
+</html>
