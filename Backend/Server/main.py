@@ -33,7 +33,7 @@ for directory in [STORAGE_DIR, CHUNKS_DIR]:
 # For demo purposes, we're hardcoding it
 ENCRYPTION_KEY = b'VGhpc0lzQVNlY3JldEtleUZvckRlbW9Pbmx5ISEh=='  # Base64 encoded key
 
-@app.route('/upload', methods=['POST'])
+@app.route('/upload_encoded', methods=['POST'])
 def upload_file():
     """
     Endpoint for receiving and storing base64 encoded files
