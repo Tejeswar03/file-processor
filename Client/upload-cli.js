@@ -11,9 +11,9 @@
  *   encrypted - Create encrypted zip and upload
  * 
  * Examples:
- *   node upload-cli.js regular ./test.txt http://localhost:5000/upload_encoded
- *   node upload-cli.js chunked ./large-file.iso http://localhost:5000/upload_chunked --chunk-size=2097152
- *   node upload-cli.js encrypted ./sensitive-folder http://localhost:5000/upload_zip_encrypted
+ *   node upload-cli.js regular ./test.txt http://localhost:5001/upload_encoded
+ *   node upload-cli.js chunked ./large-file.iso http://localhost:5001/upload_chunked --chunk-size=2097152
+ *   node upload-cli.js encrypted ./sensitive-folder http://localhost:5001/upload_zip_encrypted
  */
 
 const { processAndUploadFile } = require('./EncodingBase64/index');
@@ -43,9 +43,9 @@ if (cleanArgs.length < 3) {
   console.log('  chunked   - Chunked file upload');
   console.log('  encrypted - Create encrypted zip and upload\n');
   console.log('Examples:');
-  console.log('  node upload-cli.js regular ./test.txt http://localhost:5000/upload_encoded');
-  console.log('  node upload-cli.js chunked ./large-file.iso http://localhost:5000/upload_chunked --chunk-size=2097152');
-  console.log('  node upload-cli.js encrypted ./sensitive-folder http://localhost:5000/upload_encrypted\n');
+  console.log('  node upload-cli.js regular ./test.txt http://localhost:5001/upload_encoded');
+  console.log('  node upload-cli.js chunked ./large-file.iso http://localhost:5001/upload_chunked --chunk-size=2097152');
+  console.log('  node upload-cli.js encrypted ./sensitive-folder http://localhost:5001/upload_encrypted\n');
   console.log('Options:');
   console.log('  --chunk-size=<bytes>  - Size of chunks in bytes (default: 1MB)');
   process.exit(1);

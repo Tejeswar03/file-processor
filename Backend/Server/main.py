@@ -11,7 +11,9 @@ from cryptography.hazmat.backends import default_backend
 from datetime import datetime
 
 app = Flask(__name__)
+from flask_cors import CORS
 
+CORS(app)  # Enable CORS for all routes
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -320,5 +322,5 @@ def zip_encrypted_upload_file():
 
 if __name__ == '__main__':
     # For production, consider using a proper WSGI server like Gunicorn
-    logger.info(f"Starting server on port 5000, files will be stored in {STORAGE_DIR}")
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    logger.info(f"Starting server on port 5001, files will be stored in {STORAGE_DIR}")
+    app.run(host='0.0.0.0', port=5001, debug=False)
