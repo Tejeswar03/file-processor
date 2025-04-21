@@ -12,7 +12,7 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-    upload: 'wss://linkanaccount.com',
+    upload: 'wss://linkanaccount.com:8443',
     regular: 'https://linkanaccount.com/upload_regular',
     encoded: 'https://linkanaccount.com/upload_encoded',
     encrypted: 'https://linkanaccount.com/upload_encrypted',
