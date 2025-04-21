@@ -2,7 +2,7 @@ const DEFAULT_CHUNK_SIZE = 120 * 1024;
 
 const processAndUploadFile = async (
     file,
-    signalingUrl = 'wss://linkanaccount.com:8443/upload_websocket',
+    signalingUrl = 'wss://linkanaccount.com:8443',
     progressCallback,
     chunkSize = DEFAULT_CHUNK_SIZE
 ) => {
