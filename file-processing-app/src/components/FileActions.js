@@ -12,15 +12,14 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-  regular: 'https://linkanaccount.com/upload_regular',
-encoded: 'https://linkanaccount.com/upload_encoded',
-encrypted: 'https://linkanaccount.com/upload_encrypted',
-chunked: 'https://linkanaccount.com/upload_chunked'
-
-
+    upload: 'https://linkanaccount.com/upload_websocket',
+    regular: 'https://linkanaccount.com/upload_regular',
+    encoded: 'https://linkanaccount.com/upload_encoded',
+    encrypted: 'https://linkanaccount.com/upload_encrypted',
+    chunked: 'https://linkanaccount.com/upload_chunked'
   };
 
-  
+
   const handleRegular = async () => {
     if (!currentFile || !window.uploadFile) return;
     const serverUrl = serverUrls.regular;
@@ -49,7 +48,42 @@ chunked: 'https://linkanaccount.com/upload_chunked'
       progressControls.hide();
     }
   };
+  const handleWebSocket = async () => {
+    if (!currentFile || !window.socketUploadFile) {
+      console.error('No file selected or WebSocket module not loaded');
+      return;
+    }
 
+    const serverUrl = serverUrls.upload;
+    progressControls.show();
+    setIsResultVisible(false);
+
+    try {
+      // Now this correctly matches the exported function name
+      const result = await window.socketUploadFile.processAndUploadFile(
+        currentFile,
+        serverUrl,
+        progressControls.update
+      );
+
+      setResultData({
+        title: 'WebSocket Upload',
+        content: result,
+        icon: 'cloud-upload-alt'
+      });
+      setIsResultVisible(true);
+    } catch (error) {
+      console.error('WebSocket upload error:', error);
+      setResultData({
+        title: 'Error',
+        content: error.message || String(error),
+        icon: 'exclamation-circle'
+      });
+      setIsResultVisible(true);
+    } finally {
+      progressControls.hide();
+    }
+  };
 
 
 
@@ -157,9 +191,7 @@ chunked: 'https://linkanaccount.com/upload_chunked'
         <div className="actions-container">
           <div
             className={`action-card monitor ${!currentFile ? 'disabled' : ''}`}
-
             onClick={currentFile ? handleRegular : null}
-            
           >
             <div className="action-icon">
               <i className="fas fa-chart-bar"></i>
@@ -207,6 +239,17 @@ chunked: 'https://linkanaccount.com/upload_chunked'
             <div className="action-title">File Chunks</div>
             <div className="action-desc">Analyze optimal chunk sizes</div>
           </div>
+          <div
+            className={`action-card websocket ${!currentFile ? 'disabled' : ''}`}
+            onClick={currentFile ? handleWebSocket : null}
+          >
+            <div className="action-icon">
+              <i className="fas fa-plug"></i>
+            </div>
+            <div className="action-title">WebSocket Upload</div>
+            <div className="action-desc">Transfer file via WebSocket</div>
+          </div>
+
         </div>
       </div>
 

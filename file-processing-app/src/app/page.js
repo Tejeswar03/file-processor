@@ -19,7 +19,7 @@ const loadModules = () => {
   } catch (error) {
     console.error('Error importing fileReg module:', error);
   }
-  
+
   try {
     import('@/utils/EncodingBase64/index').then(module => {
       window.base64Handler = module;
@@ -30,7 +30,7 @@ const loadModules = () => {
   } catch (error) {
     console.error('Error importing base64Handler module:', error);
   }
-  
+
   try {
     import('@/utils/EncryptedAES/index').then(module => {
       window.encryptionHandler = module;
@@ -41,7 +41,7 @@ const loadModules = () => {
   } catch (error) {
     console.error('Error importing encryptionHandler module:', error);
   }
-  
+
   try {
     import('@/utils/Chunked/index').then(module => {
       window.chunkHandler = module;
@@ -52,7 +52,21 @@ const loadModules = () => {
   } catch (error) {
     console.error('Error importing chunkHandler module:', error);
   }
+
+  try {
+    import('@/utils/WebSocket/index').then(module => {
+      window.socketUploadFile = module;
+      console.log('Web socket Handler module loaded successfully');
+    }).catch(error => {
+      console.error('Error loading web socket Handler module:', error);
+    });
+  } catch (error) {
+    console.error('Error importing web socket Handler module:', error);
+  }
+
 };
+
+
 
 export default function Home() {
   const [currentFile, setCurrentFile] = useState(null);
@@ -70,20 +84,20 @@ export default function Home() {
       <Header />
       <div className="container">
         <div className="app-container">
-          <FileUpload 
-            setCurrentFile={setCurrentFile} 
-            updateProgress={setProgressControls} 
+          <FileUpload
+            setCurrentFile={setCurrentFile}
+            updateProgress={setProgressControls}
           />
-          <FileActions 
+          <FileActions
             currentFile={currentFile}
-            progressControls={progressControls} 
+            progressControls={progressControls}
             setResultData={setResultData}
             setIsResultVisible={setIsResultVisible}
           />
         </div>
-        <ResultSection 
-          isVisible={isResultVisible} 
-          resultData={resultData} 
+        <ResultSection
+          isVisible={isResultVisible}
+          resultData={resultData}
         />
       </div>
       <Footer />
