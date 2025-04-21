@@ -12,7 +12,7 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-    upload: 'https://linkanaccount.com/upload_websocket',
+    upload: 'http://localhost:3008/upload_websocket',
     regular: 'https://linkanaccount.com/upload_regular',
     encoded: 'https://linkanaccount.com/upload_encoded',
     encrypted: 'https://linkanaccount.com/upload_encrypted',
