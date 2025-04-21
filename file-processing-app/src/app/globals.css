@@ -363,6 +363,16 @@ header {
   color: white;
 }
 
+.websocket .action-icon {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4CAF50;
+}
+.websocket:hover:not(.disabled) .action-icon {
+  background-color: #4CAF50;
+  color: white;
+}
+
+
 .progress-container {
   height: 4px;
   background-color: var(--gray);

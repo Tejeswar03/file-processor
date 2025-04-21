@@ -1,0 +1,12 @@
+File Analysis for "test.txt"
+  Total Size: 0.00 MB (31 bytes)
+  File Type: text/plain
+  File ID: 41377244
+  
+  Recommended chunk configurations:
+  
+1 MB chunks: Would split into 1 part
+5 MB chunks: Would split into 1 part
+10 MB chunks: Would split into 1 part
+
+Estimated upload time: 1 seconds (at 2 MB/sec)

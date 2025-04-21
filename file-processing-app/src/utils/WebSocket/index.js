@@ -1,166 +1,131 @@
-// utils/WebSocket/index.js - Simplified for debugging
-export const processAndUploadFile = async (
+const DEFAULT_CHUNK_SIZE = 120 * 1024;
+
+const processAndUploadFile = async (
     file,
-    signalingUrl = 'ws://localhost:3008', // Using ws:// protocol
-    progressCallback
+    signalingUrl = 'ws://localhost:6789/upload_websocket',
+    progressCallback,
+    chunkSize = DEFAULT_CHUNK_SIZE
 ) => {
-    console.log('Processing and uploading file:', file);
+    console.log('Processing and uploading file via WebSocket in chunks:', file.name);
+    
     if (!file) {
         throw new Error('No file provided');
     }
 
-    if (progressCallback) progressCallback(5);
-
-    try {
-        await new Promise((resolve, reject) => {
-            // Create WebSocket with proper protocol
-            const ws = new WebSocket(signalingUrl);
-            console.log('Attempting WebSocket connection to:', signalingUrl);
-            
-            ws.onopen = () => {
-                console.log('WebSocket connection established');
-                if (progressCallback) progressCallback(15);
-                
-                // Just send basic file info as a simple test
-                try {
-                    const message = JSON.stringify({ 
-                        type: 'file_info',
-                        filename: file.name,
-                        fileSize: file.size,
-                        fileType: file.type 
-                    });
-                    console.log('Sending message:', message);
-                    ws.send(message);
-                } catch (err) {
-                    console.error('Error sending initial message:', err);
-                    reject(new Error('Failed to send initial message'));
-                }
-            };
-
-            ws.onmessage = ({ data }) => {
-                console.log('Received WebSocket message:', typeof data === 'string' ? data : '[Binary data]');
-                try {
-                    // Just log received messages for debugging
-                    if (typeof data === 'string') {
-                        const response = JSON.parse(data);
-                        console.log('Parsed response:', response);
-                        
-                        // If server acknowledges file info, upload directly via WebSocket
-                        if (response.type === 'file_info_received') {
-                            console.log('File info acknowledged, starting direct upload');
-                            
-                            // Read file and send in chunks
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                const buffer = reader.result;
-                                const chunkSize = 64 * 1024; // 64KB chunks
-                                
-                                // Send start upload message
-                                ws.send(JSON.stringify({ type: 'upload_start' }));
-                                
-                                // Send chunks with progress updates
-                                let offset = 0;
-                                const total = buffer.byteLength;
-                                
-                                const sendNextChunk = () => {
-                                    if (offset < total) {
-                                        const chunk = buffer.slice(offset, Math.min(offset + chunkSize, total));
-                                        ws.send(chunk);
-                                        
-                                        offset += chunkSize;
-                                        
-                                        if (progressCallback) {
-                                            const pct = 15 + Math.round((offset / total) * 55);
-                                            progressCallback(Math.min(pct, 70));
-                                        }
-                                        
-                                        // Schedule next chunk (to avoid blocking UI)
-                                        setTimeout(sendNextChunk, 0);
-                                    } else {
-                                        // Finished sending chunks
-                                        ws.send(JSON.stringify({ type: 'upload_complete' }));
-                                    }
-                                };
-                                
-                                // Start sending chunks
-                                sendNextChunk();
-                            };
-                            
-                            reader.onerror = (err) => {
-                                console.error('Error reading file:', err);
-                                reject(new Error('File read error'));
-                            };
-                            
-                            reader.readAsArrayBuffer(file);
-                        }
-                        
-                        // Handle upload complete confirmation
-                        if (response.type === 'upload_success') {
-                            console.log('Upload completed successfully');
-                            resolve();
-                        }
-                    }
-                } catch (err) {
-                    console.error('Error processing message:', err);
-                }
-            };
-
-            ws.onerror = (err) => {
-                console.error('WebSocket error:', err);
-                reject(new Error('WebSocket error: Connection failed'));
-            };
-            
-            ws.onclose = (event) => {
-                console.log(`WebSocket closed with code: ${event.code}, reason: ${event.reason}`);
-                if (event.code !== 1000) {
-                    // Not a normal closure
-                    reject(new Error(`WebSocket closed abnormally. Code: ${event.code}`));
-                }
-            };
-
-            // Add timeout for connection
-            setTimeout(() => {
-                if (ws.readyState !== WebSocket.OPEN) {
-                    console.error('WebSocket connection timeout');
-                    reject(new Error('WebSocket connection timeout'));
-                }
-            }, 10000);
-        });
-
-        if (progressCallback) progressCallback(100);
+    return new Promise((resolve, reject) => {
+        const ws = new WebSocket(signalingUrl);
+        let chunkNumber = 0;
+        let offset = 0;
+        const totalChunks = Math.ceil(file.size / chunkSize);
         
-        return { success: true, message: 'File uploaded successfully' };
-    } catch (error) {
-        console.error('File upload error:', error);
-        
-        // Fall back to HTTP upload
-        console.log('WebSocket upload failed, trying HTTP fallback');
-        try {
-            const form = new FormData();
-            form.append('file', file, file.name);
-            const response = await fetch('http://localhost:3005/upload_websocket', {
-                method: 'POST',
-                body: form
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP upload failed: ${response.statusText}`);
+        const connectionTimeout = setTimeout(() => {
+            if (ws.readyState !== WebSocket.OPEN) {
+                ws.close();
+                reject(new Error('WebSocket connection timeout'));
             }
-
-            const result = await response.json();
-            return result;
-        } catch (httpError) {
-            console.error('HTTP fallback error:', httpError);
-            throw error; // Throw the original WebSocket error
+        }, 10000);
+        
+        ws.onopen = function() {
+            console.log("WebSocket connection opened");
+            clearTimeout(connectionTimeout);
+            
+            if (progressCallback) progressCallback(5);
+            
+            sendNextChunk();
+        };
+        
+        ws.onmessage = function(event) {
+            console.log("Message from server:", event.data);
+            
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.chunkReceived && chunkNumber < totalChunks) {
+                    const progress = Math.min(95, Math.floor((chunkNumber / totalChunks) * 90) + 5);
+                    if (progressCallback) progressCallback(progress);
+                    
+                    if (offset < file.size) {
+                        sendNextChunk();
+                    }
+                } else if (data.uploadComplete || data.success) {
+                    if (progressCallback) progressCallback(100);
+                    resolve(data);
+                } else {
+                    console.log("Server message:", data);
+                }
+            } catch (err) {
+                if (event.data.includes('Error')) {
+                    reject(new Error(event.data));
+                } else if (event.data.includes('next')) {
+                    if (offset < file.size) {
+                        const progress = Math.min(95, Math.floor((chunkNumber / totalChunks) * 90) + 5);
+                        if (progressCallback) progressCallback(progress);
+                        sendNextChunk();
+                    }
+                } else if (event.data.includes('success') || event.data.includes('complete')) {
+                    if (progressCallback) progressCallback(100);
+                    resolve({ success: true, message: event.data });
+                }
+            }
+        };
+        
+        ws.onclose = function(event) {
+            console.log("WebSocket connection closed", event.code, event.reason);
+            clearTimeout(connectionTimeout);
+            
+            if (event.code !== 1000 && event.code !== 1001) {
+                reject(new Error(`WebSocket closed unexpectedly: ${event.code}`));
+            }
+        };
+        
+        ws.onerror = function(error) {
+            console.error("WebSocket error:", error);
+            clearTimeout(connectionTimeout);
+            reject(error);
+        };
+        
+        function sendNextChunk() {
+            if (offset >= file.size) {
+                console.log("All chunks sent");
+                return;
+            }
+            
+            const slice = file.slice(offset, offset + chunkSize);
+            const reader = new FileReader();
+            
+            reader.onload = function() {
+                try {
+                    const base64Data = reader.result.split(',')[1];
+                    const isLast = (offset + chunkSize >= file.size) ? "1" : "0";
+                    const message = `${file.name}:::${chunkNumber}:::${isLast}:::${base64Data}`;
+                    ws.send(message);
+                    
+                    offset += chunkSize;
+                    chunkNumber++;
+                } catch (err) {
+                    console.error('Error sending chunk:', err);
+                    reject(new Error('Failed to send chunk: ' + err.message));
+                }
+            };
+            
+            reader.onerror = function(error) {
+                reject(new Error('Error reading file chunk: ' + error));
+            };
+            
+            reader.readAsDataURL(slice);
         }
-    }
+    });
 };
 
-// For backward compatibility
-export const socketUploadFile = processAndUploadFile;
-
-// Export both functions
-export default {
-    processAndUploadFile,
-    socketUploadFile
+const socketUploadFile = {
+    processAndUploadFile: processAndUploadFile
 };
+
+if (typeof window !== 'undefined') {
+    window.socketUploadFile = socketUploadFile;
+    console.log('Chunked Socket Handler module loaded successfully');
+}
+
+export { processAndUploadFile, socketUploadFile };
+
+export default socketUploadFile;

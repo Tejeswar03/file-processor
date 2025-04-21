@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function FileActions({
   currentFile,
@@ -12,7 +12,11 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
+<<<<<<< HEAD
     upload: 'http://localhost:3008/upload_websocket',
+=======
+    upload: 'ws://localhost:6789/upload_websocket',
+>>>>>>> aa4ec000f544532bcc7e4c488ac18b4aa71ff628
     regular: 'https://linkanaccount.com/upload_regular',
     encoded: 'https://linkanaccount.com/upload_encoded',
     encrypted: 'https://linkanaccount.com/upload_encrypted',
@@ -68,7 +72,7 @@ export default function FileActions({
 
       setResultData({
         title: 'WebSocket Upload',
-        content: result,
+        content:  JSON.stringify(result, null, 2),
         icon: 'cloud-upload-alt'
       });
       setIsResultVisible(true);
@@ -181,6 +185,32 @@ export default function FileActions({
     }
   };
 
+  // Handle clicking outside of options container to close it
+  const handleClickOutside = (event) => {
+    const optionsContainer = document.getElementById('optionsContainer');
+    const chunksCard = document.querySelector('.chunks');
+    
+    if (
+      optionsContainer && 
+      !optionsContainer.contains(event.target) && 
+      chunksCard && 
+      !chunksCard.contains(event.target)
+    ) {
+      setIsOptionsVisible(false);
+    }
+  };
+
+  // Add and remove event listener for click outside
+  useEffect(() => {
+    if (isOptionsVisible) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOptionsVisible]);
+
   return (
     <>
       <div className="actions-section card">
@@ -224,12 +254,9 @@ export default function FileActions({
 
           <div
             className={`action-card chunks ${!currentFile ? 'disabled' : ''}`}
-            onClick={currentFile ? handleChunks : null}
-            onMouseOver={() => setIsOptionsVisible(true)}
-            onMouseOut={() => {
-              if (!document.activeElement ||
-                !document.getElementById('optionsContainer')?.contains(document.activeElement)) {
-                setIsOptionsVisible(false);
+            onClick={() => {
+              if (currentFile) {
+                setIsOptionsVisible(!isOptionsVisible);
               }
             }}
           >
@@ -275,6 +302,21 @@ export default function FileActions({
           <small style={{ display: 'block', marginTop: '4px', color: '#37474F', opacity: '0.7' }}>
             Default: 1MB (1048576 bytes)
           </small>
+        </div>
+        <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button 
+            style={{
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+            onClick={handleChunks}
+          >
+            Process Chunks
+          </button>
         </div>
       </div>
     </>
