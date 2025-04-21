@@ -12,10 +12,11 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-    regular: 'https://54.221.88.28:5000/upload_regular',
-    encoded: 'https://54.221.88.28:5000/upload_encoded',
-    encrypted: 'https://54.221.88.28:5000/upload_encrypted',
-    chunked: 'https://54.221.88.28:5000/upload_chunked'
+    regular: 'https://linkanaccount.com:5000/upload_regular',
+encoded: 'https://linkanaccount.com:5000/upload_encoded',
+encrypted: 'https://linkanaccount.com:5000/upload_encrypted',
+chunked: 'https://linkanaccount.com:5000/upload_chunked'
+
   };
 
   
