@@ -12,7 +12,7 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-    upload: 'https://linkanaccount.com/upload_websocket',
+    upload: 'ws://localhost:6789/upload_websocket',
     regular: 'https://linkanaccount.com/upload_regular',
     encoded: 'https://linkanaccount.com/upload_encoded',
     encrypted: 'https://linkanaccount.com/upload_encrypted',
@@ -68,7 +68,7 @@ export default function FileActions({
 
       setResultData({
         title: 'WebSocket Upload',
-        content: result,
+        content:  JSON.stringify(result, null, 2),
         icon: 'cloud-upload-alt'
       });
       setIsResultVisible(true);
