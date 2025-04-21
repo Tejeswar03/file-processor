@@ -12,10 +12,10 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-    regular: 'http://54.221.88.28:5000/upload_regular',
-    encoded: 'http://54.221.88.28:5000/upload_encoded',
-    encrypted: 'http://54.221.88.28:5000/upload_encrypted',
-    chunked: 'http://54.221.88.28:5000/upload_chunked'
+    regular: 'https://54.221.88.28:5000/upload_regular',
+    encoded: 'https://54.221.88.28:5000/upload_encoded',
+    encrypted: 'https://54.221.88.28:5000/upload_encrypted',
+    chunked: 'https://54.221.88.28:5000/upload_chunked'
   };
 
   
