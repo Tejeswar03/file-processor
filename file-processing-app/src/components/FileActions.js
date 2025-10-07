@@ -12,11 +12,11 @@ export default function FileActions({
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
-    upload: 'wss://34.173.239.174:6789',
-    regular: 'https://34.173.239.174:5010/upload_regular',
-    encoded: 'https://34.173.239.174:5010/upload_encoded',
-    encrypted: 'https://34.173.239.174:5010/upload_encrypted',
-    chunked: 'https://34.173.239.174:5010/upload_chunked'
+    upload: 'wss://ws.files.attackvault.xyz',
+    regular: '  https://see.files.attackvault.xyz/upload_regular',
+    encoded: '  https://see.files.attackvault.xyz/upload_encoded',
+    encrypted: '  https://see.files.attackvault.xyz/upload_encrypted',
+    chunked: '  https://see.files.attackvault.xyz/upload_chunked'
   };
 
 
