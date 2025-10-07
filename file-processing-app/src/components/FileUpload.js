@@ -1,27 +1,32 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import '../app/dashboard.css';
 
 export default function FileUpload({ setCurrentFile, updateProgress }) {
   const [fileInfo, setFileInfo] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const fileInputRef = useRef(null);
   const progressBarRef = useRef(null);
   const progressContainerRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Format file size helper
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
-    
+
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    
+
     return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   // Get icon based on file type
   const getFileIcon = (fileType) => {
     if (!fileType) return 'fa-file';
-    
+
     if (fileType.startsWith('image/')) {
       return 'fa-file-image';
     } else if (fileType.startsWith('text/')) {
@@ -106,6 +111,61 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
     }
   };
 
+  // Handle dropdown toggle
+  const toggleDropdown = () => {
+    if (!isDownloading) {
+      setIsDropdownOpen(!isDropdownOpen);
+    }
+  };
+
+  // Handle format selection and immediate download
+  const handleFormatSelect = async (format) => {
+    setSelectedFormat(format);
+    setIsDropdownOpen(false);
+
+    if (format) {
+      setIsDownloading(true);
+
+      try {
+        // Simulate file download - in real app, this would be an API call
+        const fileName = `sample.${format}`;
+        const filePath = `/sample_files/${fileName}`;
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = filePath;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Reset after download
+        setTimeout(() => {
+          setIsDownloading(false);
+          setSelectedFormat('');
+        }, 1000);
+      } catch (error) {
+        console.error('Download failed:', error);
+        setIsDownloading(false);
+        setSelectedFormat('');
+      }
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Expose the progress functions to parent
   useEffect(() => {
     if (updateProgress) {
@@ -120,11 +180,54 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
   return (
     <div className="file-upload-section card">
       <div className="section-title">
-        <i className="fas fa-upload"></i>
-        File Upload
+        <div className="subpar">
+          <i className="fas fa-upload"></i>
+          File Upload
+        </div>
+
+        <div className="download-format-dropdown">
+          <div className="dropdown-container" ref={dropdownRef}>
+            <button
+              className="dropdown-btn"
+              onClick={toggleDropdown}
+              disabled={isDownloading}
+            >
+              <i className="fas fa-download" style={{color: 'white', opacity: isDownloading?0:1}}></i>
+              {isDownloading ? 'Downloading...' : 'Download Sample'}
+              <i className={`fas fa-chevron-${isDropdownOpen ? 'up' : 'down'}`} style={{color: 'white', opacity: isDownloading?0:1}}></i>
+            </button>
+
+            <div className={`dropdown-menu ${isDropdownOpen ? 'show' : ''}`}>
+              <div
+                className="dropdown-item txt"
+                onClick={() => handleFormatSelect('txt')}
+              >
+                <i className="fas fa-file-alt"></i>
+                <span className="dropdown-item-text">Download TXT</span>
+              </div>
+              <div
+                className="dropdown-item pdf"
+                onClick={() => handleFormatSelect('csv')}
+              >
+                <i className="fas fa-file-csv"></i>
+                <span className="dropdown-item-text">Download CSV</span>
+              </div>
+              <div
+                className="dropdown-item excel"
+                onClick={() => handleFormatSelect('xlsx')}
+              >
+                <i className="fas fa-file-excel"></i>
+                <span className="dropdown-item-text">Download Excel</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+
+
       <div className="file-upload-container">
-        <div 
+        <div
           className={`dropzone ${isDragging ? 'active' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -138,14 +241,14 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
             Supports all file types. Max file size: 100MB
           </p>
           <div className="dropzone-button">Choose File</div>
-          <input 
-            type="file" 
-            id="fileInput" 
+          <input
+            type="file"
+            id="fileInput"
             ref={fileInputRef}
             onChange={handleFileSelection}
           />
         </div>
-        
+
         {fileInfo && (
           <div className="file-info visible" id="fileInfo">
             <div className="file-info-header">
@@ -156,11 +259,11 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
                 <div className="file-name" id="fileName">{fileInfo.name}</div>
                 <div className="file-meta">
                   <div id="fileSize">
-                    <i className="fas fa-weight-hanging"></i> 
+                    <i className="fas fa-weight-hanging"></i>
                     <span>{fileInfo.size}</span>
                   </div>
                   <div id="fileType">
-                    <i className="fas fa-code"></i> 
+                    <i className="fas fa-code"></i>
                     <span>{fileInfo.type}</span>
                   </div>
                 </div>
@@ -168,7 +271,7 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
             </div>
           </div>
         )}
-        
+
         <div className="progress-container" ref={progressContainerRef} id="progressContainer">
           <div className="progress-bar" ref={progressBarRef} id="progressBar"></div>
           <div id="progressText" style={{ textAlign: 'center', marginTop: '8px' }}>0%</div>
