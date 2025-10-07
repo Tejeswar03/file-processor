@@ -8,7 +8,7 @@ export default function FileActions({
   setIsResultVisible
 }) {
   const [chunkSize, setChunkSize] = useState(1048576); // Default: 1MB
-  const [isOptionsVisible, setIsOptionsVisible] = useState(false);
+  const [isPopupVisible, setIsPopupVisible] = useState(false);
 
   // Mock server URLs (for display purposes)
   const serverUrls = {
@@ -18,7 +18,6 @@ export default function FileActions({
     encrypted: '  https://see.files.attackvault.xyz/upload_encrypted',
     chunked: '  https://see.files.attackvault.xyz/upload_chunked'
   };
-
 
   const handleRegular = async () => {
     if (!currentFile || !window.uploadFile) return;
@@ -48,6 +47,7 @@ export default function FileActions({
       progressControls.hide();
     }
   };
+
   const handleWebSocket = async () => {
     if (!currentFile || !window.socketUploadFile) {
       console.error('No file selected or WebSocket module not loaded');
@@ -84,8 +84,6 @@ export default function FileActions({
       progressControls.hide();
     }
   };
-
-
 
   const handleBase64 = async () => {
     if (!currentFile || !window.base64Handler) return;
@@ -155,6 +153,7 @@ export default function FileActions({
     const serverUrl = serverUrls.chunked;
     progressControls.show();
     setIsResultVisible(false);
+    setIsPopupVisible(false); // Close popup after submitting
 
     try {
       const result = await window.chunkHandler.uploadFileInChunks(
@@ -181,31 +180,26 @@ export default function FileActions({
     }
   };
 
-  // Handle clicking outside of options container to close it
+  // Handle clicking outside of popup to close it
   const handleClickOutside = (event) => {
-    const optionsContainer = document.getElementById('optionsContainer');
-    const chunksCard = document.querySelector('.chunks');
+    const popup = document.getElementById('chunkSizePopup');
     
-    if (
-      optionsContainer && 
-      !optionsContainer.contains(event.target) && 
-      chunksCard && 
-      !chunksCard.contains(event.target)
-    ) {
-      setIsOptionsVisible(false);
+    if (popup && !popup.contains(event.target) && 
+        !event.target.closest('.chunks')) {
+      setIsPopupVisible(false);
     }
   };
 
   // Add and remove event listener for click outside
   useEffect(() => {
-    if (isOptionsVisible) {
+    if (isPopupVisible) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOptionsVisible]);
+  }, [isPopupVisible]);
 
   return (
     <>
@@ -252,7 +246,7 @@ export default function FileActions({
             className={`action-card chunks ${!currentFile ? 'disabled' : ''}`}
             onClick={() => {
               if (currentFile) {
-                setIsOptionsVisible(!isOptionsVisible);
+                setIsPopupVisible(!isPopupVisible);
               }
             }}
           >
@@ -262,6 +256,7 @@ export default function FileActions({
             <div className="action-title">File Chunks</div>
             <div className="action-desc">Analyze optimal chunk sizes</div>
           </div>
+
           <div
             className={`action-card websocket ${!currentFile ? 'disabled' : ''}`}
             onClick={currentFile ? handleWebSocket : null}
@@ -272,49 +267,118 @@ export default function FileActions({
             <div className="action-title">WebSocket Upload</div>
             <div className="action-desc">Transfer file via WebSocket</div>
           </div>
-
         </div>
       </div>
 
-      <div
-        id="optionsContainer"
-        className="file-info"
-        style={{
-          display: isOptionsVisible && currentFile ? 'block' : 'none',
-          marginTop: '16px'
-        }}
-      >
-        <div className="form-group">
-          <label htmlFor="chunkSizeInput" style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-            Chunk Size (bytes):
-          </label>
-          <input
-            type="number"
-            id="chunkSizeInput"
-            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ECEFF1' }}
-            value={chunkSize}
-            onChange={(e) => setChunkSize(parseInt(e.target.value) || 1048576)}
-          />
-          <small style={{ display: 'block', marginTop: '4px', color: '#37474F', opacity: '0.7' }}>
-            Default: 1MB (1048576 bytes)
-          </small>
-        </div>
-        <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
-          <button 
+      {/* Popup Dialog for Chunk Size */}
+      {isPopupVisible && (
+        <div 
+          className="popup-overlay" 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            id="chunkSizePopup" 
+            className="popup-content"
             style={{
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              border: 'none',
-              cursor: 'pointer'
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              width: '400px',
+              maxWidth: '90%',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
             }}
-            onClick={handleChunks}
           >
-            Process Chunks
-          </button>
+            <div 
+              className="popup-header"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px'
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+                File Chunk Settings
+              </h3>
+              <button 
+                onClick={() => setIsPopupVisible(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '20px'
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="chunkSizeInput" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                Chunk Size (bytes):
+              </label>
+              <input
+                type="number"
+                id="chunkSizeInput"
+                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ECEFF1' }}
+                value={chunkSize}
+                onChange={(e) => setChunkSize(parseInt(e.target.value) || 1048576)}
+              />
+              <small style={{ display: 'block', marginTop: '4px', color: '#37474F', opacity: '0.7' }}>
+                Default: 1MB (1048576 bytes)
+              </small>
+            </div>
+            
+            <div 
+              className="popup-actions"
+              style={{
+                marginTop: '24px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px'
+              }}
+            >
+              <button 
+                style={{
+                  backgroundColor: '#f5f5f5',
+                  color: '#333',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setIsPopupVisible(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                style={{
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+                onClick={handleChunks}
+              >
+                Process Chunks
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
