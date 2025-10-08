@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import '../app/dashboard.css';
+import Link from 'next/link';
 
 export default function FileUpload({ setCurrentFile, updateProgress }) {
   const [fileInfo, setFileInfo] = useState(null);
@@ -283,7 +284,7 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
           File Upload
         </div>
 
-        <div className="download-format-dropdown">
+        <div className="download-format-dropdown" style={{ display: 'flex', gap: '10px' }}>
           <div className="dropdown-container" ref={dropdownRef}>
             <button
               className="dropdown-btn"
@@ -319,6 +320,17 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
               </div>
             </div>
           </div>
+
+          {/* Server Files Link Button */}
+          <Link href="/server-files" passHref target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            <button
+              className="dropdown-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <i className="fas fa-list" style={{color: 'white'}}></i>
+              Server Files
+            </button>
+          </Link>
         </div>
       </div>
 

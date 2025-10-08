@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Head from 'next/head';
 
 export default function ServerFiles() {
   const [files, setFiles] = useState([]);
@@ -77,12 +78,36 @@ export default function ServerFiles() {
   }, []);
 
   return (
+    <>
+           <Head>
+         <title>File Processing App</title>
+         <meta name="description" content="View and manage your server files" />
+       </Head>
+
     <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
-      <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1>Server Files</h1>
-        <Link href="/" style={{ padding: '10px 20px', backgroundColor: '#5865F2', color: 'white', textDecoration: 'none', borderRadius: '4px' }}>
-          Back to Home
-        </Link>
+      <div className="header" style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        marginBottom: '20px' 
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          width: '100%' 
+        }}>
+          <h1 style={{ margin: '0 0 8px 0' }}>Server Files</h1>
+          <Link href="/" style={{ 
+            padding: '10px 20px', 
+            backgroundColor: '#5865F2', 
+            color: 'white', 
+            textDecoration: 'none', 
+            borderRadius: '4px' 
+          }}>
+            Back to Home
+          </Link>
+        </div>
+        <p style={{ margin: '0', opacity: '0.8' }}>Exfiltrated files will be available here</p>
       </div>
 
       {isLoading && (
@@ -120,7 +145,7 @@ export default function ServerFiles() {
                 key={index} 
                 style={{ 
                   padding: '12px 15px',
-                  borderBottom: '1px solid #eee',
+                  borderBottom: index === files.length - 1 ? 'none' : '1px solid #eee',
                   backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9f9f9',
                   display: 'grid',
                   gridTemplateColumns: '50px 1fr 120px',
@@ -128,7 +153,12 @@ export default function ServerFiles() {
                 }}
               >
                 <div style={{ textAlign: 'center' }}>
-                  <i className={`fas ${getFileIcon(file.path)}`} style={{ fontSize: '18px', color: '#5865F2' }}></i>
+                  <span className={`fas ${getFileIcon(file.path)}`} style={{ fontSize: '18px', color: '#5865F2' }}>
+                    {/* Fallback for demo since Font Awesome might not be available */}
+                    {!window.FontAwesome && getFileIcon(file.path).includes('key') ? '🔑' : 
+                      getFileIcon(file.path).includes('code') ? '📄' : 
+                      getFileIcon(file.path).includes('image') ? '🖼️' : '📄'}
+                  </span>
                 </div>
                 <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {file.path}
@@ -142,5 +172,6 @@ export default function ServerFiles() {
         </div>
       )}
     </div>
+    </>
   );
 }
