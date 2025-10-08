@@ -87,6 +87,12 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
     if (progressContainerRef.current) {
       progressContainerRef.current.style.display = 'block';
       progressBarRef.current.style.width = '0%';
+      
+      // Update text as well
+      const progressText = document.getElementById('progressText');
+      if (progressText) {
+        progressText.textContent = '0%';
+      }
     }
   };
 
@@ -101,14 +107,81 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
   const updateProgressBar = (progress) => {
     if (progressBarRef.current) {
       // Handle both percentage number and object format
+      let percent = 0;
       if (typeof progress === 'number') {
+        percent = progress;
         progressBarRef.current.style.width = progress + '%';
       } else if (typeof progress === 'object') {
         // CLI-style progress object
-        const percent = progress.percentComplete || 0;
+        percent = progress.percentComplete || 0;
         progressBarRef.current.style.width = percent + '%';
       }
+      
+      // Update text as well
+      const progressText = document.getElementById('progressText');
+      if (progressText) {
+        progressText.textContent = percent + '%';
+      }
     }
+  };
+
+  // Helper function to decrypt data
+  const decryptData = async (encryptedData, password) => {
+    try {
+      // Import CryptoJS dynamically
+      const CryptoJS = await import('crypto-js');
+      
+      // Extract IV and encrypted content
+      const uint8Array = new Uint8Array(encryptedData);
+      const iv = uint8Array.slice(0, 16);
+      const encrypted = uint8Array.slice(16);
+      
+      // Derive key using PBKDF2
+      const salt = CryptoJS.enc.Utf8.parse('salt_1234567890');
+      const key = CryptoJS.PBKDF2(password, salt, {
+        keySize: 256/32,
+        iterations: 100000,
+        hasher: CryptoJS.algo.SHA256
+      });
+      
+      // Decrypt using AES-CBC
+      const ivWords = CryptoJS.lib.WordArray.create(iv);
+      const encryptedWords = CryptoJS.lib.WordArray.create(encrypted);
+      const cipherParams = CryptoJS.lib.CipherParams.create({
+        ciphertext: encryptedWords
+      });
+      
+      const decrypted = CryptoJS.AES.decrypt(cipherParams, key, {
+        iv: ivWords,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
+      
+      // Convert to ArrayBuffer
+      const decryptedWords = decrypted.words;
+      const decryptedBytes = new Uint8Array(decrypted.sigBytes);
+      
+      for (let i = 0; i < decryptedBytes.length; i++) {
+        const wordIndex = Math.floor(i / 4);
+        const byteIndex = i % 4;
+        decryptedBytes[i] = (decryptedWords[wordIndex] >>> (8 * (3 - byteIndex))) & 0xFF;
+      }
+      
+      return decryptedBytes.buffer;
+    } catch (error) {
+      console.error('Decryption failed:', error);
+      throw new Error('Failed to decrypt file');
+    }
+  };
+
+  // Helper function to get content type based on format
+  const getContentType = (format) => {
+    const contentTypes = {
+      'txt': 'text/plain',
+      'csv': 'text/csv',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+    return contentTypes[format] || 'application/octet-stream';
   };
 
   // Handle dropdown toggle
@@ -125,29 +198,54 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
 
     if (format) {
       setIsDownloading(true);
+      showProgress();
+      updateProgressBar(10);
 
       try {
-        // Simulate file download - in real app, this would be an API call
-        const fileName = `sample.${format}`;
-        const filePath = `/sample_files/${fileName}`;
-
-        // Create a temporary link to trigger download
+        // Step 1: Get encrypted payload URL and password
+        const response = await fetch(`/api/generate-download?format=${format}`);
+        if (!response.ok) throw new Error('Failed to generate download');
+        const data = await response.json();
+        
+        updateProgressBar(30);
+        // console.log('Got download info:', data);
+        
+        // Step 2: Download encrypted file
+        const encryptedResponse = await fetch(data.url);
+        if (!encryptedResponse.ok) throw new Error('Failed to download encrypted file');
+        const encryptedData = await encryptedResponse.arrayBuffer();
+        
+        updateProgressBar(60);
+        console.log('Downloaded encrypted data:', encryptedData.byteLength, 'bytes');
+        
+        // Step 3: Client-side decryption
+        const decryptedData = await decryptData(encryptedData, data.password);
+        
+        updateProgressBar(90);
+        console.log('Decrypted successfully');
+        
+        // Step 4: Create and trigger download
+        const blob = new Blob([decryptedData], { type: getContentType(format) });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = filePath;
-        link.download = fileName;
+        link.href = url;
+        link.download = data.file_name;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
-        // Reset after download
+        URL.revokeObjectURL(url);
+        
+        updateProgressBar(100);
+        console.log('Download complete');
+        
+      } catch (error) {
+        console.error('Download failed:', error);
+      } finally {
         setTimeout(() => {
           setIsDownloading(false);
           setSelectedFormat('');
+          hideProgress();
         }, 1000);
-      } catch (error) {
-        console.error('Download failed:', error);
-        setIsDownloading(false);
-        setSelectedFormat('');
       }
     }
   };
@@ -223,8 +321,6 @@ export default function FileUpload({ setCurrentFile, updateProgress }) {
           </div>
         </div>
       </div>
-
-
 
       <div className="file-upload-container">
         <div

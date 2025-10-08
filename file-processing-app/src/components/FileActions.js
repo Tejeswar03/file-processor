@@ -7,7 +7,7 @@ export default function FileActions({
   setResultData,
   setIsResultVisible
 }) {
-  const [chunkSize, setChunkSize] = useState(1048576); // Default: 1MB
+  const [chunkSize, setChunkSize] = useState(100); // Default: 1MB
   const [isPopupVisible, setIsPopupVisible] = useState(false);
 
   // Mock server URLs (for display purposes)
@@ -333,11 +333,11 @@ export default function FileActions({
                 id="chunkSizeInput"
                 style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ECEFF1' }}
                 value={chunkSize}
-                onChange={(e) => setChunkSize(parseInt(e.target.value) || 1048576)}
+                onChange={(e) => setChunkSize(parseInt(e.target.value) || 100)}
               />
-              <small style={{ display: 'block', marginTop: '4px', color: '#37474F', opacity: '0.7' }}>
-                Default: 1MB (1048576 bytes)
-              </small>
+            <small style={{ display: 'block', marginTop: '4px', color: '#37474F', opacity: '0.7' }}>
+              Default: 100 Bytes
+            </small>
             </div>
             
             <div 

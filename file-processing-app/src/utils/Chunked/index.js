@@ -147,10 +147,11 @@ async function analyzeChunks(file, chunkInfo, progressCallback) {
 
 function generateHexDump(bytes) {
   const BYTES_PER_LINE = 16;
-  let output = '';
+  let output = 'File header preview :\n';
   
   for (let i = 0; i < bytes.length; i += BYTES_PER_LINE) {
     output += `0x${i.toString(16).padStart(8, '0')}: `;
+    // Only show hex bytes, not their ASCII representation
     for (let j = 0; j < BYTES_PER_LINE; j++) {
       if (i + j < bytes.length) {
         output += bytes[i + j].toString(16).padStart(2, '0') + ' ';
@@ -161,16 +162,7 @@ function generateHexDump(bytes) {
         output += ' ';
       }
     }
-    output += ' |';
-    for (let j = 0; j < BYTES_PER_LINE; j++) {
-      if (i + j < bytes.length) {
-        const byte = bytes[i + j];
-        output += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
-      } else {
-        output += ' ';
-      }
-    }
-    output += '|\n';
+    output += '\n';
   }
   
   return output;
@@ -262,38 +254,39 @@ Chunk Breakdown:
 ${chunkData.firstChunkPreview}
 `;
 
-  output += `
-Estimated Transfer Rates:
-----------------------
-`;
+//   output += `
+// Estimated Transfer Rates:
+// ----------------------
+// `;
 
-  for (const [networkType, data] of Object.entries(chunkData.transferRates)) {
-    output += `${networkType}: 
-  - Total transfer time: ${data.totalTime}
-  - Time per chunk: ${data.timePerChunk}
-  - Transfer speed: ${data.bytesPerSecond}
-\n`;
-  }
+//   for (const [networkType, data] of Object.entries(chunkData.transferRates)) {
+//     output += `${networkType}: 
+//   - Total transfer time: ${data.totalTime}
+//   - Time per chunk: ${data.timePerChunk}
+//   - Transfer speed: ${data.bytesPerSecond}
+// \n`;
+//   }
   
-  output += `
-Recommendations:
---------------
-`;
+//   output += `
+// Recommendations:Download Sample
 
-  if (chunkInfo.chunkSize < 256 * 1024) {
-    output += '- Consider increasing chunk size for better performance with fewer HTTP requests\n';
-  } else if (chunkInfo.chunkSize > 10 * 1024 * 1024) {
-    output += '- Consider decreasing chunk size for better error recovery and progress reporting\n';
-  } else {
-    output += '- Current chunk size provides a good balance between efficiency and resilience\n';
-  }
+// --------------
+// `;
+
+  // if (chunkInfo.chunkSize < 256 * 1024) {
+  //   output += '- Consider increasing chunk size for better performance with fewer HTTP requests\n';
+  // } else if (chunkInfo.chunkSize > 10 * 1024 * 1024) {
+  //   output += '- Consider decreasing chunk size for better error recovery and progress reporting\n';
+  // } else {
+  //   output += '- Current chunk size provides a good balance between efficiency and resilience\n';
+  // }
   
-  if (chunkInfo.totalChunks > 100) {
-    output += '- File has many chunks; consider implementing pause/resume functionality\n';
-  }
+  // if (chunkInfo.totalChunks > 100) {
+  //   output += '- File has many chunks; consider implementing pause/resume functionality\n';
+  // }
   
-  output += '- Use a backoff strategy for failed chunk uploads\n';
-  output += '- Consider adding checksums to verify chunk integrity\n';
+  // output += '- Use a backoff strategy for failed chunk uploads\n';
+  // output += '- Consider adding checksums to verify chunk integrity\n';
   
   return output;
 }
